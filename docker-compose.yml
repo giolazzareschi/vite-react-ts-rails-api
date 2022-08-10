@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  web:
+    build: 
+      context: ./
+      dockerfile: ./docker-rails/Dockerfile
+    command: bash -c "rm -f /usr/src/app/tmp/pids/server.pid && cd /usr/src/app && bundler install && bin/rails db:migrate && bin/rails s -p 3000 -b '0.0.0.0'"
+    volumes:
+      - ./docker-rails:/usr/src/app
+      - ./docker-rails/bundle:/usr/local/bundle
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./docker-rails/.env
+    environment:
+      - HISTFILE=/usr/src/app/log/.bash_history 
+    depends_on:
+      - db
+      - redis
+
+  front:
+    build: 
+      context: ./
+      dockerfile: ./front/Dockerfile
+    command: bash -c "cd /usr/src/app && yarn vite --host 0.0.0.0"
+    volumes:
+      - ./front:/usr/src/app
+    ports:
+      - "5173:5173"
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:13
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=tickets_dev
+      - POSTGRES_PASSWORD=tickets_dev
+      - POSTGRES_DATABASE=tickets_dev
+    volumes:
+      - ./postgresql:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  redis:
+    image: redis
+    volumes:
+      - ./redis_data:/data
+
+volumes:
+  postgresql:
+  redis_data:
+  bundle:
